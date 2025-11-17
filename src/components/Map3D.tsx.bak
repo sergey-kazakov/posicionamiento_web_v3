@@ -1,0 +1,170 @@
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { useApp } from '../store';
+import { normalizeWeights, applyReverse, weightedDistances, classicalMDS } from '../utils/mds';
+
+export function Map3D() {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const { project } = useApp();
+
+  useEffect(() => {
+    const mount = mountRef.current!;
+    mount.innerHTML = '';
+
+    // --- Scene / camera / renderer ---
+    const W = 1000, H = 650;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(W, H);
+    renderer.setClearColor('#ffffff', 1);
+    mount.appendChild(renderer.domElement);
+
+    // Grid + light
+    const grid = new THREE.GridHelper(12, 12, 0xDDE6EE, 0xEEF2F7);
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+    // --- Data: brand positions via 3D MDS, attributes = centroids ---
+    const perfRaw = project.brands.map(b =>
+      project.attributes.map(a => {
+        const vals = project.responses.map(r => r.performance[b.name]?.[a.id] ?? 3);
+        return vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : 3;
+      })
+    );
+    const perf = applyReverse(perfRaw, project.attributes.map(a => !!a.reversed));
+    const w = normalizeWeights(new Array(project.attributes.length).fill(1)); // равные веса
+    const X3 = classicalMDS(weightedDistances(perf, w), 3);
+
+    // scale to a nice cube
+    let max = 1e-6;
+    X3.forEach(row => row.forEach(v => (max = Math.max(max, Math.abs(v)))));
+    const s = 1.7 / max;
+
+    // Brands (spheres + label sprites)
+    X3.forEach((p, i) => {
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 24, 24),
+        new THREE.MeshStandardMaterial({ color: project.brands[i].color || '#0D1B2A' })
+      );
+      sphere.position.set(p[0] * s, p[1] * s, p[2] * s);
+      scene.add(sphere);
+
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 64;
+      const g = c.getContext('2d')!;
+      g.fillStyle = 'rgba(255,255,255,0.95)';
+      g.strokeStyle = '#CCC';
+      g.lineWidth = 2;
+      // @ts-ignore
+      g.roundRect?.(1, 1, 254, 62, 8);
+      if (!('roundRect' in g)) { g.fillRect(1, 1, 254, 62); }
+      g.fill(); g.stroke();
+      g.fillStyle = '#111';
+      g.font = '24px Arial';
+      g.fillText(project.brands[i].name, 10, 40);
+
+      const tex = new THREE.CanvasTexture(c);
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      label.scale.set(0.9, 0.22, 1);
+      label.position.set(p[0] * s + 0.12, p[1] * s + 0.12, p[2] * s);
+      scene.add(label);
+    });
+
+    // Attribute centroids (cubes + labels)
+    project.attributes.forEach((a, j) => {
+      let wx = 0, wy = 0, wz = 0, wsum = 0;
+      for (let i = 0; i < project.brands.length; i++) {
+        const wj = perf[i][j];
+        wx += X3[i][0] * wj; wy += X3[i][1] * wj; wz += X3[i][2] * wj;
+        wsum += wj;
+      }
+      if (wsum === 0) return;
+      const ax = (wx / wsum) * s, ay = (wy / wsum) * s, az = (wz / wsum) * s;
+
+      const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.06, 0.06),
+        new THREE.MeshStandardMaterial({ color: 0x2CAFBF })
+      );
+      cube.position.set(ax, ay, az);
+      scene.add(cube);
+
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 64;
+      const g = c.getContext('2d')!;
+      g.fillStyle = 'rgba(255,255,255,0.95)';
+      g.strokeStyle = '#CCC';
+      g.lineWidth = 2;
+      // @ts-ignore
+      g.roundRect?.(1, 1, 254, 62, 8);
+      if (!('roundRect' in g)) { g.fillRect(1, 1, 254, 62); }
+      g.fill(); g.stroke();
+      g.fillStyle = '#111';
+      g.font = '22px Arial';
+      g.fillText(project.lang === 'es' ? a.labelEs : a.labelEn, 10, 40);
+
+      const tex = new THREE.CanvasTexture(c);
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      label.scale.set(0.9, 0.22, 1);
+      label.position.set(ax + 0.12, ay + 0.12, az);
+      scene.add(label);
+    });
+
+    // --- Controls: drag orbit + wheel zoom ---
+    let isDown = false, lastX = 0, lastY = 0;
+    let yaw = 0.6, pitch = -0.3, zoom = 1.1; // старт — «сверху-справа»
+
+    function onDown(e: MouseEvent) {
+      isDown = true; lastX = e.clientX; lastY = e.clientY;
+    }
+    function onUp() { isDown = false; }
+    function onMove(e: MouseEvent) {
+      if (!isDown) return;
+      yaw   += (e.clientX - lastX) * 0.005;
+      pitch += (e.clientY - lastY) * 0.005;
+      pitch = Math.max(-1.2, Math.min(1.2, pitch));
+      lastX = e.clientX; lastY = e.clientY;
+    }
+    function wheelH(e: WheelEvent) {
+      zoom *= e.deltaY > 0 ? 1.05 : 0.95;
+      zoom = Math.max(0.4, Math.min(3, zoom));
+    }
+
+    renderer.domElement.addEventListener('mousedown', onDown);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('mousemove', onMove);
+    renderer.domElement.addEventListener('wheel', wheelH, { passive: true });
+
+    // --- Render loop ---
+    let raf = 0;
+    function render() {
+      camera.position.x = Math.sin(yaw) * 6 / zoom;
+      camera.position.z = Math.cos(yaw) * 6 / zoom;
+      camera.position.y = pitch * 6 / zoom;
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(render);
+    }
+    render();
+
+    // cleanup
+    return () => {
+      cancelAnimationFrame(raf);
+      renderer.domElement.removeEventListener('mousedown', onDown);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mousemove', onMove);
+      renderer.domElement.removeEventListener('wheel', wheelH);
+      renderer.dispose();
+      mount.innerHTML = '';
+    };
+  }, [project]);
+
+  return (
+    <div className="card">
+      <h3>Mapa 3D (MDS)</h3>
+      <div ref={mountRef}></div>
+      <div className="hint">Arrastra para orbitar, rueda para zoom. Кубики — атрибуты (центроиды).</div>
+    </div>
+  );
+}
