@@ -74,7 +74,11 @@ const ES: Dict = {
   name: 'Nombre',
   reversed: 'Inverso',
   priceNote: 'Para el precio, valores más bajos se interpretan como mejores.',
-
+  attrNote:
+      'Cuando añadas un nuevo atributo, introduce siempre su nombre en español e inglés. Estos textos se usan en los cuestionarios y en los gráficos.',
+    attrError:
+      'Por favor, introduce el nombre del atributo en español e inglés.',
+      
   importance: 'Importancia (1–5)',
   performance: 'Desempeño (1–5)',
   brand: 'Marca',
@@ -126,6 +130,10 @@ const EN: Dict = {
   name: 'Name',
   reversed: 'Reversed',
   priceNote: 'For price, lower values are interpreted as better.',
+  attrNote:
+    'When adding a new attribute, always provide both Spanish and English names. These labels are used in the survey and on the maps.',
+  attrError:
+    'Please enter the attribute name in both Spanish and English.',
 
   importance: 'Importance (1–5)',
   performance: 'Performance (1–5)',
