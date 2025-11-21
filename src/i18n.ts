@@ -24,6 +24,8 @@ type Dict = {
   reversed: string;
   priceNote: string;
   
+  attrNote: string;
+  attrError: string;
   perfMeansTitle: string;
   attrSensitivityTitle: string;
 
