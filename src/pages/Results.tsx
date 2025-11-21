@@ -357,7 +357,7 @@ export function Results() {
       <div className="grid">
         {/* Левая колонка: таблица performance */}
         <div>
-          <h4>Medias de performance</h4>
+          <h4>{tr.perfMeansTitle}</h4>
           <table>
             <thead>
               <tr>
@@ -404,7 +404,7 @@ export function Results() {
             </tbody>
           </table>
 
-          <h4 style={{ marginTop: 16 }}>Sensibilidad de atributos</h4>
+          <h4 style={{ marginTop: 16 }}>{tr.attrSensitivityTitle}</h4>
           <table>
             <thead>
               <tr>

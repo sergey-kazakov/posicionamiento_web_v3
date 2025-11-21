@@ -24,8 +24,8 @@ type Dict = {
   reversed: string;
   priceNote: string;
   
-  attrNote: string;
-  attrError: string;
+  perfMeansTitle: string;
+  attrSensitivityTitle: string;
 
   importance: string;
   performance: string;
@@ -81,7 +81,9 @@ const ES: Dict = {
       'Cuando añadas un nuevo atributo, introduce siempre su nombre en español e inglés. Estos textos se usan en los cuestionarios y en los gráficos.',
     attrError:
       'Por favor, introduce el nombre del atributo en español e inglés.',
-      
+  
+  perfMeansTitle: 'Medias de performance',
+  attrSensitivityTitle: 'Sensibilidad de atributos',    
   importance: 'Importancia (1–5)',
   performance: 'Desempeño (1–5)',
   brand: 'Marca',
@@ -138,6 +140,8 @@ const EN: Dict = {
   attrError:
     'Please enter the attribute name in both Spanish and English.',
 
+  perfMeansTitle: 'Performance means',
+  attrSensitivityTitle: 'Attribute sensitivity',
   importance: 'Importance (1–5)',
   performance: 'Performance (1–5)',
   brand: 'Brand',
