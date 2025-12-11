@@ -14,7 +14,7 @@ type Dict = {
   designer: string;
   survey: string;
   map2d: string;
-  map3d: string;
+  // map3d: string;
   results: string;
 
   brands: string;
