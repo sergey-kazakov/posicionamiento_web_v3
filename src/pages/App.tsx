@@ -26,59 +26,63 @@ function AppInner() {
   return (
 	<>
 	  <header>
-		<div
-		  className="container"
-		  style={{
-			display: 'flex',
-			justifyContent: 'space-between',
-			alignItems: 'center',
-		  }}
-		>
-		  {/* Логотип */}
-		  <div className="app-logo">
-			<div className="logo-wordmark">
-			  <span className="logo-main">POSICIONA</span>
-			  <span className="logo-dot" />
-			  <span className="logo-tail">MIENTO</span>
-			</div>
-			<div className="logo-subtitle">Perceptual Mapping Lab</div>
-		  </div>
-
-		  {/* Язык + импорт/экспорт */}
 		  <div
-			className="print-hide"
-			style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+			className="container"
+			style={{
+			  display: 'flex',
+			  justifyContent: 'space-between',
+			  alignItems: 'center',
+			}}
 		  >
-			<span className="hint">{tr.language}:</span>
-			<select
-			  value={project.lang}
-			  onChange={(e) =>
-				setProject({ ...project, lang: e.target.value as any })
-			  }
+			{/* Левая группа: UAH + логотип приложения */}
+			<div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+			  <div className="uah-logo">UAH</div>
+	  
+			  <div className="app-logo">
+				<div className="logo-wordmark">
+				  <span className="logo-main">POSICIONA</span>
+				  <span className="logo-dot" />
+				  <span className="logo-tail">MIENTO</span>
+				</div>
+				<div className="logo-subtitle">Perceptual Mapping Lab</div>
+			  </div>
+			</div>
+	  
+			{/* Правая группа: язык + импорт/экспорт */}
+			<div
+			  className="print-hide"
+			  style={{ display: 'flex', gap: 8, alignItems: 'center' }}
 			>
-			  <option value="es">{tr.es}</option>
-			  <option value="en">{tr.en}</option>
-			</select>
-
-			<button className="btn" onClick={() => exportJSON(project)}>
-			  {tr.export}
-			</button>
-
-			<label className="btn">
-			  <input
-				type="file"
-				accept="application/json"
-				style={{ display: 'none' }}
-				onChange={(e) => {
-				  const f = e.target.files?.[0];
-				  if (f) importJSON(f, setProject);
-				}}
-			  />
-			  {tr.import}
-			</label>
+			  <span className="hint">{tr.language}:</span>
+			  <select
+				value={project.lang}
+				onChange={(e) =>
+				  setProject({ ...project, lang: e.target.value as any })
+				}
+			  >
+				<option value="es">{tr.es}</option>
+				<option value="en">{tr.en}</option>
+			  </select>
+	  
+			  <button className="btn" onClick={() => exportJSON(project)}>
+				{tr.export}
+			  </button>
+	  
+			  <label className="btn">
+				<input
+				  type="file"
+				  accept="application/json"
+				  style={{ display: 'none' }}
+				  onChange={(e) => {
+					const f = e.target.files?.[0];
+					if (f) importJSON(f, setProject);
+				  }}
+				/>
+				{tr.import}
+			  </label>
+			</div>
 		  </div>
-		</div>
-	  </header>
+		</header>
 
 	  <div className="container">
 		{/* Навигация по экранам */}

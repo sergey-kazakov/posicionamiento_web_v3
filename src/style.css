@@ -64,3 +64,14 @@ table{border-collapse:collapse;width:100%}th,td{border:1px solid #eee;padding:8p
     border: none;
   }
 }
+.uah-logo {
+  background: #ffffff;
+  color: #0077C8;
+  border: 2px solid #0077C8;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-weight: 700;
+  font-size: 16px;
+  display: inline-block;
+  white-space: nowrap;
+}
