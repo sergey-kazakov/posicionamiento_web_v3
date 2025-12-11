@@ -12,7 +12,7 @@ export function Home() {
 
 	  {/* Краткое описание возможностей, как у тебя было */}
 	  <p>
-		• {tr.map2d} / {tr.map3d}
+		• {tr.map2d}
 		{' '}• {tr.designer}
 		{' '}• {tr.survey}
 		{' '}• {tr.results}

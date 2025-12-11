@@ -48,12 +48,12 @@ type Dict = {
 
 const ES: Dict = {
   appTitle: 'Posicionamiento (Web)',
-  homeTitle: 'Mapa perceptual',
-  homeIntro: `Bienvenido/a a POSICIONAMIENTO (PCA / PrefMap).
+  homeTitle: 'Posicionamiento de productos y marcas mediante mapas perceptuales',
+  homeIntro: `Bienvenido/a a POSICIONAMIENTO App.
   
-  Esta aplicación permite generar mapas perceptuales en 2D mediante PCA y PrefMap.
+ Esta app permite generar mapas perceptuales en 2D y analizar el posicionamiento de productos y marcas en el mercado utilizando el Análisis de Componentes Principales (PCA).
   
-  Cómo empezar:
+  Guía rápida de referencia:
   1. Introduce marcas y atributos manualmente en la sección DATOS.
   2. Si tienes un análisis previo, puedes cargarlo con la opción Importar JSON.
   3. Revisa o edita la matriz de atributos.
@@ -70,7 +70,6 @@ const ES: Dict = {
   designer: 'Diseñador',
   survey: 'Encuesta',
   map2d: 'Mapa de Posicionamiento',
-  map3d: 'Mapa 3D (futuro)',      // ← ДОБАВЬ ЭТУ СТРОКУ
   results: 'Resultados',
 
   brands: 'Marcas',
@@ -106,12 +105,12 @@ const ES: Dict = {
 
 const EN: Dict = {
   appTitle: 'Positioning (Web)',
-  homeTitle: 'Perceptual map',
-  homeIntro: `Welcome to POSICIONAMIENTO (PCA / PrefMap).
+  homeTitle: 'Products/Brands Positioning Through Perceptual Maps',
+  homeIntro: `Welcome to POSICIONAMIENTO App.
   
-  This lab lets you generate 2D perceptual maps using PCA and PrefMap.
+  This lab lets you generate 2D perceptual maps and analyse products and brands market positioning using Principal Component Analysis (PCA).
   
-  Getting started:
+  Quick reference guide:
   1. Enter brands and attributes manually in the DATA section.
   2. If you have a previous analysis, load it using the Import JSON option.
   3. Review or edit the attribute matrix.
@@ -128,7 +127,6 @@ const EN: Dict = {
   designer: 'Designer',
   survey: 'Survey',
   map2d: 'Positioning Map',
-  map3d: '3D map (future)',      // ← ДОБАВЬ ЭТУ СТРОКУ
   results: 'Results',
   
   brands: 'Brands',
