@@ -1,5 +1,6 @@
 // src/components/Map2D.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { drawPerceptualMap } from '../utils/drawPerceptualMap';
 import { useApp } from '../store';
 import { t } from '../i18n';
 
@@ -7,7 +8,29 @@ type PrefMap = {
   brandCoords: number[][];
   attrCoords: number[][];
   idealIndex: number | null;
+
+  tables: {
+    performanceMeans: {
+      brand: string;
+      values: number[];
+    }[];
+
+    attributeSensitivity: {
+      attribute: string;
+      loadingX: number;
+      loadingY: number;
+      magnitude: number;
+    }[];
+
+    distancesToIdeal: {
+      brand: string;
+      distance: number;
+    }[];
+  };
 };
+// IMPORTANT: must be identical in draw and hover logic
+
+const MAP_SCALE_FACTOR = 0.45;
 
 /* ------------------------- математика MDS -------------------------- */
 
@@ -275,7 +298,16 @@ function computePrefMap(project: ReturnType<typeof useApp>['project']): PrefMap 
   const A = attrs.length;
 
   if (B === 0 || A === 0) {
-    return { brandCoords: [], attrCoords: [], idealIndex: null };
+    return {
+      brandCoords: [],
+      attrCoords: [],
+      idealIndex: null,
+      tables: {
+        performanceMeans: [],
+        attributeSensitivity: [],
+        distancesToIdeal: [],
+      },
+    };
   }
 
   // IDEAL / benchmark
@@ -383,17 +415,63 @@ function computePrefMap(project: ReturnType<typeof useApp>['project']): PrefMap 
   const brandCoordsNorm = brandCoordsAll.map(([x, y]) => [x / maxR, y / maxR]);
   const attrCoordsNorm = attrCoordsRaw.map(([x, y]) => [x / maxR, y / maxR]);
 
+  // ---------- TABLE 1: Performance means ----------
+  const performanceMeansTable = brands.map((b, bi) => ({
+    brand: b.name,
+    values: perfMeans[bi],
+  }));
+  
+  // ---------- TABLE 2: Attribute sensitivity ----------
+  const attributeSensitivityTable = attrs.map((a, ai) => {
+    const [x, y] = attrCoordsNorm[ai] ?? [0, 0];
+    const magnitude = Math.sqrt(x * x + y * y);
+  
+    return {
+      attribute: project.lang === 'es' ? a.labelEs : a.labelEn,
+      loadingX: x,
+      loadingY: y,
+      magnitude,
+    };
+  });
+  
+  // ---------- TABLE 3: Distances to IDEAL ----------
+  const distancesToIdealTable: {
+    brand: string;
+    distance: number;
+  }[] = [];
+  
+  if (idealIndex >= 0) {
+    const [ix, iy] = brandCoordsNorm[idealIndex];
+  
+    brands.forEach((b, bi) => {
+      if (bi === idealIndex) return;
+      const [x, y] = brandCoordsNorm[bi];
+      const d = Math.sqrt((x - ix) ** 2 + (y - iy) ** 2);
+  
+      distancesToIdealTable.push({
+        brand: b.name,
+        distance: d,
+      });
+    });
+  }
+  
   return {
     brandCoords: brandCoordsNorm,
     attrCoords: attrCoordsNorm,
     idealIndex: idealIndex >= 0 ? idealIndex : null,
+  
+    tables: {
+      performanceMeans: performanceMeansTable,
+      attributeSensitivity: attributeSensitivityTable,
+      distancesToIdeal: distancesToIdealTable,
+    },
   };
 }
 
 /* ------------------------------ React-компонент ------------------------------ */
 
 export const Map2D: React.FC = () => {
-  const { project } = useApp();
+  const { project, setProject } = useApp();
   const tr = t(project.lang);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -405,7 +483,17 @@ export const Map2D: React.FC = () => {
   );
 
   const prefMap = useMemo(() => computePrefMap(project), [project]);
-
+  
+  useEffect(() => {
+    setProject((prev) => {
+      if (prev.prefMap === prefMap) return prev;
+      return {
+        ...prev,
+        prefMap,
+      };
+    });
+  }, [prefMap, setProject]);
+  
   useEffect(() => {
     setSelectedAttrIds(project.attributes.map((a) => a.id));
   }, [project.attributes]);
@@ -415,158 +503,17 @@ export const Map2D: React.FC = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    const W = canvas.width;
-    const H = canvas.height;
-    const cx = W / 2;
-    const cy = H / 2;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, W, H);
-
-    // сетка
-    ctx.strokeStyle = '#eef2f7';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= W; x += 50) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= H; y += 50) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
-
-    // оси
-    ctx.strokeStyle = '#C7D4E2';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(0, cy);
-    ctx.lineTo(W, cy);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx, 0);
-    ctx.lineTo(cx, H);
-    ctx.stroke();
-
-    const { brandCoords, attrCoords, idealIndex } = prefMap;
-    const scale = Math.min(W, H) * 0.4 * zoom;
-
-    // бренды
-    ctx.font = '12px system-ui';
-    project.brands.forEach((b, i) => {
-      const [bx, by] = brandCoords[i] ?? [0, 0];
-      const x = cx + bx * scale;
-      const y = cy - by * scale;
-
-      const isHover = hoverBrandIndex === i;
-
-      ctx.beginPath();
-      ctx.fillStyle = isHover ? '#ff7b00' : (b.color || '#0D1B2A');
-      ctx.arc(x, y, isHover ? 7 : 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#111';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(b.name, x + 8, y - 4);
+  
+    drawPerceptualMap({
+      ctx,
+      canvas,
+      project,
+      prefMap,
+      zoom,
+      hoverBrandIndex,
+      showAttributes,
+      selectedAttrIds,
     });
-
-    // атрибуты
-    if (showAttributes) {
-      ctx.font = '11px system-ui';
-      project.attributes.forEach((a, j) => {
-        const [ax, ay] = attrCoords[j] ?? [0, 0];
-        const x = cx + ax * scale;
-        const y = cy - ay * scale;
-
-        ctx.beginPath();
-        ctx.fillStyle = '#2CAFBF';
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#333';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        const label = project.lang === 'es' ? a.labelEs : a.labelEn;
-        ctx.fillText(label, x + 6, y + 2);
-      });
-    }
-
-    // лучи при hover
-    if (
-      hoverBrandIndex !== null &&
-      hoverBrandIndex >= 0 &&
-      hoverBrandIndex < project.brands.length
-    ) {
-      const [bx, by] = brandCoords[hoverBrandIndex] ?? [0, 0];
-      const bxCanvas = cx + bx * scale;
-      const byCanvas = cy - by * scale;
-
-      if (idealIndex !== null && idealIndex >= 0) {
-        const [ix, iy] = brandCoords[idealIndex] ?? [0, 0];
-        const ixCanvas = cx + ix * scale;
-        const iyCanvas = cy - iy * scale;
-
-        const dx = bx - ix;
-        const dy = by - iy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        ctx.strokeStyle = '#ff7b00';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(bxCanvas, byCanvas);
-        ctx.lineTo(ixCanvas, iyCanvas);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = '#ff7b00';
-        ctx.font = '11px system-ui';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(
-          `IDEAL: ${dist.toFixed(2)}`,
-          (bxCanvas + ixCanvas) / 2,
-          (byCanvas + iyCanvas) / 2 - 4,
-        );
-      }
-
-      project.attributes.forEach((a, j) => {
-        if (!selectedAttrIds.includes(a.id)) return;
-        const [ax, ay] = attrCoords[j] ?? [0, 0];
-        const axCanvas = cx + ax * scale;
-        const ayCanvas = cy - ay * scale;
-
-        const dx = bx - ax;
-        const dy = by - ay;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        ctx.strokeStyle = '#999';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(bxCanvas, byCanvas);
-        ctx.lineTo(axCanvas, ayCanvas);
-        ctx.stroke();
-
-        ctx.fillStyle = '#555';
-        ctx.font = '10px system-ui';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const label = `${
-          project.lang === 'es' ? a.labelEs : a.labelEn
-        }: ${dist.toFixed(2)}`;
-        ctx.fillText(
-          label,
-          (bxCanvas + axCanvas) / 2,
-          (byCanvas + ayCanvas) / 2 + 2,
-        );
-      });
-    }
   }, [project, prefMap, hoverBrandIndex, zoom, showAttributes, selectedAttrIds]);
 
   // hover
@@ -576,15 +523,22 @@ export const Map2D: React.FC = () => {
 
     const handleMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
+      
+      // переводим mouse → canvas coordinates
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      
       const { brandCoords } = prefMap;
+      
+      // ВАЖНО: та же система координат, что и в drawPerceptualMap
       const W = canvas.width;
       const H = canvas.height;
       const cx = W / 2;
       const cy = H / 2;
-      const scale = Math.min(W, H) * 0.4 * zoom;
+      const scale = Math.min(W, H) * MAP_SCALE_FACTOR * zoom;
 
       let found = -1;
       project.brands.forEach((_, i) => {
@@ -593,8 +547,11 @@ export const Map2D: React.FC = () => {
         const py = cy - by * scale;
         const dx = x - px;
         const dy = y - py;
+        const BRAND_RADIUS = 5;
+        const HOVER_RADIUS = BRAND_RADIUS + 2; // масштабируем вместе с картой
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= 10) {
+        
+        if (dist <= HOVER_RADIUS) {
           found = i;
         }
       });
@@ -622,17 +579,25 @@ export const Map2D: React.FC = () => {
   return (
     <div className="card">
       <h3>
-        {project.lang === 'es' ? 'Mapa de Posicionamiento' : 'Positioning Map'}
+        {project.lang === 'es'
+          ? 'Mapa de Posicionamiento'
+          : 'Positioning Map'}
       </h3>
-
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div>
+  
+      <div className="map-layout">
+        {/* LEFT: MAP */}
+        <div className="map-canvas">
           <canvas
             ref={canvasRef}
             width={900}
             height={600}
-            style={{ borderRadius: 8, border: '1px solid #dde3ee' }}
+            style={{
+              width: '900px',
+              height: '600px',
+              borderRadius: 8,
+            }}
           />
+  
           <div
             style={{
               marginTop: 8,
@@ -652,14 +617,16 @@ export const Map2D: React.FC = () => {
             />
             <span style={{ fontSize: 12 }}>×{zoom.toFixed(1)}</span>
           </div>
+  
           <div style={{ marginTop: 4, fontSize: 11, color: '#666' }}>
             {project.lang === 'es'
               ? 'Pasa el ratón por las marcas para ver distancias a IDEAL y a los atributos seleccionados.'
               : 'Hover the brands to see distances to IDEAL and selected attributes.'}
           </div>
         </div>
-
-        <div style={{ minWidth: 220 }}>
+  
+        {/* RIGHT: SIDEBAR */}
+        <div className="map-sidebar">
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 13 }}>
               <input
@@ -673,11 +640,13 @@ export const Map2D: React.FC = () => {
                 : 'Show attributes on map'}
             </label>
           </div>
+  
           <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 600 }}>
             {project.lang === 'es'
               ? 'Atributos para las líneas de distancia:'
               : 'Attributes for distance lines:'}
           </div>
+  
           <div
             style={{
               border: '1px solid #dde3ee',
@@ -703,7 +672,9 @@ export const Map2D: React.FC = () => {
                   checked={selectedAttrIds.includes(a.id)}
                   onChange={() => handleAttrToggle(a.id)}
                 />
-                <span>{project.lang === 'es' ? a.labelEs : a.labelEn}</span>
+                <span>
+                  {project.lang === 'es' ? a.labelEs : a.labelEn}
+                </span>
               </label>
             ))}
           </div>

@@ -44,6 +44,7 @@ type Dict = {
   print: string;
 
   mapHint: string;
+  mapSummaryTitle: string;
 };
 
 const ES: Dict = {
@@ -101,6 +102,7 @@ const ES: Dict = {
 
   mapHint:
     'Pasa el ratón por las marcas para ver distancias a IDEAL y a los atributos seleccionados.',
+  mapSummaryTitle: 'Mapa 2D (resumen)',
 };
 
 const EN: Dict = {
@@ -158,6 +160,7 @@ const EN: Dict = {
 
   mapHint:
     'Hover over brands to see distances to IDEAL and to selected attributes.',
+  mapSummaryTitle: '2D Map (summary)',
 };
 
 export function t(lang: Lang): Dict {
