@@ -28,11 +28,40 @@ export type Project = {
   attributes: Attribute[];
   benchmark?: string;
   responses: SurveyResponse[];
+  
+  prefMap?: {
+	// Геометрия карты
+	brandCoords: number[][];
+	attrCoords: number[][];
+	idealIndex: number | null;
+  
+	// Таблицы для Results (read-only)
+	tables: {
+	  performanceMeans: {
+		brand: string;
+		values: number[];
+	  }[];
+  
+	  attributeSensitivity: {
+		attribute: string;
+		loadingX: number;
+		loadingY: number;
+		magnitude: number;
+	  }[];
+  
+	  distancesToIdeal: {
+		brand: string;
+		distance: number;
+	  }[];
+	};
+  };
 };
+
+// IMPORTANT: setProject supports both full Project object and functional updater
 
 type Ctx = {
   project: Project;
-  setProject: (p: Project) => void;
+  setProject: (p: Project | ((prev: Project) => Project)) => void;
 };
 
 /* ========= Default seed ========= */
@@ -93,10 +122,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [project, setProjectState] = useState<Project>(initialProject);
 
-  function setProject(p: Project) {
-	if (!p || typeof p !== 'object') return;
-	localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-	setProjectState(p);
+  function setProject(
+	updater: Project | ((prev: Project) => Project)
+  ) {
+	setProjectState((prev) => {
+	  const next =
+		typeof updater === 'function'
+		  ? updater(prev)
+		  : updater;
+  
+	  if (!next || typeof next !== 'object') return prev;
+  
+	  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+	  return next;
+	});
   }
 
   return (

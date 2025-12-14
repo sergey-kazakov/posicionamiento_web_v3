@@ -8,7 +8,29 @@ type PrefMap = {
   brandCoords: number[][];
   attrCoords: number[][];
   idealIndex: number | null;
+
+  tables: {
+    performanceMeans: {
+      brand: string;
+      values: number[];
+    }[];
+
+    attributeSensitivity: {
+      attribute: string;
+      loadingX: number;
+      loadingY: number;
+      magnitude: number;
+    }[];
+
+    distancesToIdeal: {
+      brand: string;
+      distance: number;
+    }[];
+  };
 };
+// IMPORTANT: must be identical in draw and hover logic
+
+const MAP_SCALE_FACTOR = 0.45;
 
 /* ------------------------- математика MDS -------------------------- */
 
@@ -276,7 +298,16 @@ function computePrefMap(project: ReturnType<typeof useApp>['project']): PrefMap 
   const A = attrs.length;
 
   if (B === 0 || A === 0) {
-    return { brandCoords: [], attrCoords: [], idealIndex: null };
+    return {
+      brandCoords: [],
+      attrCoords: [],
+      idealIndex: null,
+      tables: {
+        performanceMeans: [],
+        attributeSensitivity: [],
+        distancesToIdeal: [],
+      },
+    };
   }
 
   // IDEAL / benchmark
@@ -384,17 +415,63 @@ function computePrefMap(project: ReturnType<typeof useApp>['project']): PrefMap 
   const brandCoordsNorm = brandCoordsAll.map(([x, y]) => [x / maxR, y / maxR]);
   const attrCoordsNorm = attrCoordsRaw.map(([x, y]) => [x / maxR, y / maxR]);
 
+  // ---------- TABLE 1: Performance means ----------
+  const performanceMeansTable = brands.map((b, bi) => ({
+    brand: b.name,
+    values: perfMeans[bi],
+  }));
+  
+  // ---------- TABLE 2: Attribute sensitivity ----------
+  const attributeSensitivityTable = attrs.map((a, ai) => {
+    const [x, y] = attrCoordsNorm[ai] ?? [0, 0];
+    const magnitude = Math.sqrt(x * x + y * y);
+  
+    return {
+      attribute: project.lang === 'es' ? a.labelEs : a.labelEn,
+      loadingX: x,
+      loadingY: y,
+      magnitude,
+    };
+  });
+  
+  // ---------- TABLE 3: Distances to IDEAL ----------
+  const distancesToIdealTable: {
+    brand: string;
+    distance: number;
+  }[] = [];
+  
+  if (idealIndex >= 0) {
+    const [ix, iy] = brandCoordsNorm[idealIndex];
+  
+    brands.forEach((b, bi) => {
+      if (bi === idealIndex) return;
+      const [x, y] = brandCoordsNorm[bi];
+      const d = Math.sqrt((x - ix) ** 2 + (y - iy) ** 2);
+  
+      distancesToIdealTable.push({
+        brand: b.name,
+        distance: d,
+      });
+    });
+  }
+  
   return {
     brandCoords: brandCoordsNorm,
     attrCoords: attrCoordsNorm,
     idealIndex: idealIndex >= 0 ? idealIndex : null,
+  
+    tables: {
+      performanceMeans: performanceMeansTable,
+      attributeSensitivity: attributeSensitivityTable,
+      distancesToIdeal: distancesToIdealTable,
+    },
   };
 }
 
 /* ------------------------------ React-компонент ------------------------------ */
 
 export const Map2D: React.FC = () => {
-  const { project } = useApp();
+  const { project, setProject } = useApp();
   const tr = t(project.lang);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -406,7 +483,17 @@ export const Map2D: React.FC = () => {
   );
 
   const prefMap = useMemo(() => computePrefMap(project), [project]);
-
+  
+  useEffect(() => {
+    setProject((prev) => {
+      if (prev.prefMap === prefMap) return prev;
+      return {
+        ...prev,
+        prefMap,
+      };
+    });
+  }, [prefMap, setProject]);
+  
   useEffect(() => {
     setSelectedAttrIds(project.attributes.map((a) => a.id));
   }, [project.attributes]);
@@ -436,15 +523,22 @@ export const Map2D: React.FC = () => {
 
     const handleMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
+      
+      // переводим mouse → canvas coordinates
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      
       const { brandCoords } = prefMap;
+      
+      // ВАЖНО: та же система координат, что и в drawPerceptualMap
       const W = canvas.width;
       const H = canvas.height;
       const cx = W / 2;
       const cy = H / 2;
-      const scale = Math.min(W, H) * 0.4 * zoom;
+      const scale = Math.min(W, H) * MAP_SCALE_FACTOR * zoom;
 
       let found = -1;
       project.brands.forEach((_, i) => {
@@ -453,8 +547,11 @@ export const Map2D: React.FC = () => {
         const py = cy - by * scale;
         const dx = x - px;
         const dy = y - py;
+        const BRAND_RADIUS = 5;
+        const HOVER_RADIUS = BRAND_RADIUS + 2; // масштабируем вместе с картой
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= 10) {
+        
+        if (dist <= HOVER_RADIUS) {
           found = i;
         }
       });
@@ -482,17 +579,25 @@ export const Map2D: React.FC = () => {
   return (
     <div className="card">
       <h3>
-        {project.lang === 'es' ? 'Mapa de Posicionamiento' : 'Positioning Map'}
+        {project.lang === 'es'
+          ? 'Mapa de Posicionamiento'
+          : 'Positioning Map'}
       </h3>
-
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div>
+  
+      <div className="map-layout">
+        {/* LEFT: MAP */}
+        <div className="map-canvas">
           <canvas
             ref={canvasRef}
             width={900}
             height={600}
-            style={{ borderRadius: 8, border: '1px solid #dde3ee' }}
+            style={{
+              width: '900px',
+              height: '600px',
+              borderRadius: 8,
+            }}
           />
+  
           <div
             style={{
               marginTop: 8,
@@ -512,14 +617,16 @@ export const Map2D: React.FC = () => {
             />
             <span style={{ fontSize: 12 }}>×{zoom.toFixed(1)}</span>
           </div>
+  
           <div style={{ marginTop: 4, fontSize: 11, color: '#666' }}>
             {project.lang === 'es'
               ? 'Pasa el ratón por las marcas para ver distancias a IDEAL y a los atributos seleccionados.'
               : 'Hover the brands to see distances to IDEAL and selected attributes.'}
           </div>
         </div>
-
-        <div style={{ minWidth: 220 }}>
+  
+        {/* RIGHT: SIDEBAR */}
+        <div className="map-sidebar">
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 13 }}>
               <input
@@ -533,11 +640,13 @@ export const Map2D: React.FC = () => {
                 : 'Show attributes on map'}
             </label>
           </div>
+  
           <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 600 }}>
             {project.lang === 'es'
               ? 'Atributos para las líneas de distancia:'
               : 'Attributes for distance lines:'}
           </div>
+  
           <div
             style={{
               border: '1px solid #dde3ee',
@@ -563,7 +672,9 @@ export const Map2D: React.FC = () => {
                   checked={selectedAttrIds.includes(a.id)}
                   onChange={() => handleAttrToggle(a.id)}
                 />
-                <span>{project.lang === 'es' ? a.labelEs : a.labelEn}</span>
+                <span>
+                  {project.lang === 'es' ? a.labelEs : a.labelEn}
+                </span>
               </label>
             ))}
           </div>

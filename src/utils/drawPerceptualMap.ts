@@ -66,6 +66,8 @@ export function drawPerceptualMap(params: {
   // ВАЖНО:
   // Масштаб теперь НЕ зависит от maxR (никакого maxR в рендере).
   // Координаты должны приходить уже в согласованном масштабе из computePrefMap.
+  // IMPORTANT: must be identical in draw and hover logic
+
   const scale = Math.min(W, H) * 0.45 * zoom;
 
   // бренды

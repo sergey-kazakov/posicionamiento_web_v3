@@ -82,6 +82,11 @@ table {
   border-collapse:collapse;
   width:100%;
 }
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
 th,td {
   border:1px solid #eee;
@@ -98,70 +103,155 @@ th,td {
 
 .hint { color:#666; }
 
-/* ===== PRINT: Results report (A4 landscape) ===== */
+/* только экран */
+@media screen {
+  #report-root canvas {
+    height: 320px;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none;
+  }
+}
+
+/* ===================================================
+   PRINT — FINAL, CLEAN, STABLE
+   =================================================== */
 @media print {
-  
-  /* .page-break {
-    page-break-before: always;
-    break-before: page;
-  } */
-  
+
   @page {
     size: A4 portrait;
     margin: 10mm;
   }
-  
+
   body {
-    background:#ffffff !important;
-    font-size:12pt;
-    color:#000;
+    background: #fff !important;
+    color: #000;
+    font-size: 10pt;
   }
 
   header,
   nav,
   button,
   .print-hide {
-    display:none !important;
+    display: none !important;
   }
 
   #report-root,
-  .container {
-    max-width:none !important;
-    width:100% !important;
-    padding:0 !important;
-    border:none !important;
-    box-shadow:none !important;
-  }
-
+  .container,
   .card {
-    border:none !important;
-    box-shadow:none !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
-  canvas,
-  img {
-    max-width:100%;
-    height:auto;
-    page-break-inside:avoid;
+  /* ===== Map ===== */
+  canvas {
+    max-width: 100%;
+    height: auto;
+    max-height: 320px;
+    page-break-inside: avoid;
   }
 
+  /* ===== Layout ===== */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 0.42fr;
+    gap: 6mm;
+    align-items: start;
+    page-break-inside: avoid;
+  }
+
+  .results-grid > div {
+    min-width: 0;
+  }
+
+  /* ===== Tables ===== */
   table {
-    width:100%;
-    border-collapse:collapse;
-    page-break-inside:auto;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;        /* КЛЮЧ */
+    page-break-inside: avoid;
   }
 
   thead {
-    display:table-header-group;
+    display: table-header-group;
   }
 
   tr {
-    page-break-inside:avoid;
+    page-break-inside: avoid;
   }
- 
-  th, td {
-    border:1px solid #000;
-    padding:4px 6px;
-    font-size:12pt;
+
+  th,
+  td {
+    border: 1px solid #000;
+    padding: 3px 4px;
+    font-size: 9.5pt;
+    line-height: 1.2;
+
+    white-space: normal;       /* перенос по словам */
+    word-break: normal;
+    hyphens: none;
+  }
+
+  /* ===== Numeric columns ===== */
+  th.num,
+  td.num {
+    width: 16px;
+    text-align: right;
+    white-space: nowrap;       /* числа без переносов */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* последняя числовая колонка */
+  table th.num:last-child,
+  table td.num:last-child {
+    width: 38px;
+  }
+
+  /* ===== IDEAL highlight ===== */
+  .ideal-row td {
+    font-weight: 600;
+  }
+
+  /* ===== Headings ===== */
+  h3 {
+    font-size: 11pt;
+    margin: 6px 0 6px;
+  }
+
+  h4 {
+    font-size: 10pt;
+    margin: 6px 0 4px;
   }
 }
+
+/* === FIX: sidebar must not overlap canvas === */
+
+.map-layout {
+  position: relative;
+}
+
+/* ширина sidebar — единый источник */
+:root {
+  --map-sidebar-width: 220px;
+}
+
+.map-canvas {
+  padding-right: var(--map-sidebar-width);
+  overflow: hidden;
+}
+
+.map-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--map-sidebar-width);
+  box-sizing: border-box;
+}
+
+/* НИКАКОГО responsive, НИКАКОГО wrap */
