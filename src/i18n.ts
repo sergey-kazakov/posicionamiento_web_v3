@@ -103,6 +103,9 @@ const ES: Dict = {
   mapHint:
     'Pasa el ratón por las marcas para ver distancias a IDEAL y a los atributos seleccionados.',
   mapSummaryTitle: 'Mapa 2D (resumen)',
+  
+  footerText: 
+  "Universidad de Alcalá · Autores: Dr. Pedro Cuesta Valiño | Dr. Sergey Kazakov | Dra. Patricia Durán Álamo · © 2025–2027",
 };
 
 const EN: Dict = {
@@ -161,6 +164,9 @@ const EN: Dict = {
   mapHint:
     'Hover over brands to see distances to IDEAL and to selected attributes.',
   mapSummaryTitle: '2D Map (summary)',
+  
+  footerText:
+  "Universidad de Alcalá · Authors: Dr. Pedro Cuesta Valiño | Dr. Sergey Kazakov | Dr. Patricia Durán Álamo · © 2025–2027",
 };
 
 export function t(lang: Lang): Dict {

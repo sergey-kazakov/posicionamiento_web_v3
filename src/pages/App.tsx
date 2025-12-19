@@ -7,7 +7,9 @@ import { Survey } from './Survey';
 import { Map2D } from '../components/Map2D';
 import { Results } from './Results';
 import { t } from '../i18n';
+import Footer from "../components/Footer";
 
+export default App;
 export function App() {
   return (
 	<AppProvider>
@@ -111,6 +113,8 @@ function AppInner() {
 		{view === 'map2d' && <Map2D />}
 		{view === 'results' && <Results />}
 	  </div>
+	  
+	  <Footer />
 	</>
   );
 }
