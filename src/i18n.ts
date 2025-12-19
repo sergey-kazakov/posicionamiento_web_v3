@@ -45,6 +45,8 @@ type Dict = {
 
   mapHint: string;
   mapSummaryTitle: string;
+  
+  footerText: string;
 };
 
 const ES: Dict = {
